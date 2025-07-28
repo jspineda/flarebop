@@ -6,11 +6,6 @@ from astropy import units as u
 
 from settings import risk_tolerance, characteristic_duration
 
-alpha = 0.76
-beta = 0.57 / u.d # mu in Loyd+ 2018
-eqd_pivot = 1 * u.ks
-
-
 
 def eqd(rate):
     eqd = (rate/beta)**(-1/alpha) * eqd_pivot
