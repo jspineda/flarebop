@@ -1,6 +1,8 @@
 from math import nan
+from pathlib import Path
 
 from matplotlib import pyplot as plt
+plt.ion()
 import numpy as np
 from astropy import table
 Table = table.Table
@@ -33,14 +35,16 @@ def get_colname(parameter, band, err=False):
     return '-'.join((parameter, band))
 
 
-def get_data(xparam, xband, yparam, yband):
-    sets = ((xparam, xband),
-            (yparam, yband))
+def get_data(fitdef):
+    sets = ((fitdef['xparam'], fitdef['xband']),
+            (fitdef['yparam'], fitdef['yband']))
     vals, errs = [], []
     for param, band in sets:
         val = cat[get_colname(param, band, False)]
         errname = get_colname(param, band, True)
-        err = cat[errname] if errname in cat.colnames else None
+        err = np.abs(cat[errname]) if errname in cat.colnames else None
+        # the np.abs() fixes a mistake from flare papers where I used an error estimate for a ratio of
+        # error = a/b * sqrt((err_a/a)**2 + (err_b/b)**2) where a/b should have been abs(a/b)
         vals.append(val)
         errs.append(err)
 
@@ -49,8 +53,8 @@ def get_data(xparam, xband, yparam, yband):
 
 #%% fitting function
 
-def perform_fit(xparam, xband, yparam, yband, quantile=None):
-    x, y, xerr, yerr = get_data(xparam, xband, yparam, yband)
+def perform_fit(fitdef):
+    x, y, xerr, yerr = get_data(fitdef)
     log = np.log10
 
     # mask low snr data
@@ -63,7 +67,8 @@ def perform_fit(xparam, xband, yparam, yband, quantile=None):
     with np.errstate(invalid='ignore', divide='ignore'):
         lx, ly = list(map(log, (x, y)))
 
-    if quantile:
+    if fitdef['percentile'] != 'n/a':
+        quantile = float(fitdef['percentile'])/100
         qr = QuantileRegressor(quantile=quantile, alpha=0)
         mask = use
         lxpivot = np.mean(lx[mask])
@@ -104,25 +109,25 @@ def perform_fit(xparam, xband, yparam, yband, quantile=None):
 
 #%% define fits we want to produce
 
-fit_defintion_order = 'xparam, xband, yparam, yband, quantile'.split(', ')
+fit_defintion_order = 'xparam, xband, yparam, yband, percentile'.split(', ')
 fits = [
-    ['equiv dur', 'fuv130', 'contrast', 'fuv130', None],
-    ['equiv dur', 'fuv130', 'contrast', 'fuv130', 0.5],
-    ['equiv dur', 'fuv130', 'contrast', 'fuv130', 0.95],
-    ['equiv dur', 'fuv130', 'cmltv fwhm', 'fuv130', None],
-    ['equiv dur', 'fuv130', 'cmltv fwhm', 'fuv130', 0.5],
-    ['equiv dur', 'fuv130', 'cmltv fwhm', 'fuv130', 0.95],
-    ['contrast', 'fuv130', 'cmltv fwhm', 'fuv130', None],
-    ['contrast', 'fuv130', 'cmltv fwhm', 'fuv130', 0.5],
-    ['contrast', 'fuv130', 'cmltv fwhm', 'fuv130', 0.95],
+    ['equiv dur', 'fuv130', 'contrast', 'fuv130', 'n/a'],
+    ['equiv dur', 'fuv130', 'contrast', 'fuv130', '50'],
+    ['equiv dur', 'fuv130', 'contrast', 'fuv130', '95'],
+    ['equiv dur', 'fuv130', 'cmltv fwhm', 'fuv130', 'n/a'],
+    ['equiv dur', 'fuv130', 'cmltv fwhm', 'fuv130', '50'],
+    ['equiv dur', 'fuv130', 'cmltv fwhm', 'fuv130', '95'],
+    ['contrast', 'fuv130', 'cmltv fwhm', 'fuv130', 'n/a'],
+    ['contrast', 'fuv130', 'cmltv fwhm', 'fuv130', '50'],
+    ['contrast', 'fuv130', 'cmltv fwhm', 'fuv130', '95'],
 ]
-lines = 'si4, c3, si3, lya wings, n5, o1, c2, si4, c4, he2'.split(', ')
+lines = 'c3, si3, lya wings, n5, o1, c2, si4, c4, he2'.split(', ')
 for line in lines:
     line_fits = [
-        ['equiv dur', 'fuv130', 'contrast', line, None],
-        ['equiv dur', 'fuv130', 'contrast', line, 0.95],
-        ['contrast', 'fuv130', 'contrast', line, None],
-        ['contrast', 'fuv130', 'contrast', line, 0.95],
+        ['equiv dur', 'fuv130', 'contrast', line, 'n/a'],
+        ['equiv dur', 'fuv130', 'contrast', line, '95'],
+        ['contrast', 'fuv130', 'contrast', line, 'n/a'],
+        ['contrast', 'fuv130', 'contrast', line, '95'],
     ]
     fits.extend(line_fits)
 
@@ -134,7 +139,7 @@ fitrows = []
 maskrows = []
 for fit in fits:
     fitrow = dict(zip(fit_defintion_order, fit))
-    result = perform_fit(**fitrow)
+    result = perform_fit(fitrow)
     for param in fitparams:
         if result[param] is not None:
             fitrow[param] = result[param]
@@ -163,26 +168,6 @@ fits['correlation'].format = '.2g'
 
 masks = Table(rows=maskrows)
 
-#%% fit to the FUV 130 FFD
-"""
-This fitting process was complex, so I am not reproducing it here. I'm simply entering a higher precision result
-from the values I stored from the Loyd+ 2018b analysis.
-"""
-row = dict(
-    xparam = 'equiv dur',
-    xband = 'fuv130',
-    xunit = 's',
-    yparam = 'rate',
-    yband = 'fuv130',
-    yunit = 'd-1',
-    quantile = np.ma.masked,
-    alpha = 0.7607041138106101,
-    beta = 0.5653602074246712,
-    pivot = 1000,
-    npts = np.ma.masked
-)
-fits.add_row(row)
-
 #%% save fit and mask tables
 
 for name in fits.colnames:
@@ -197,14 +182,51 @@ fits.write('fits/output tables/flare_line_fits.ecsv', overwrite=True)
 masks.write('fits/output tables/flare_line_fits_point_masks.ecsv', overwrite=True)
 
 
-#%% plotting function
+#%% prep to make plots
 
-def plot_fit(xparam, xeqn, yparam, yeqn, row, fitmask):
-    x, xerr, y, yerr = get_data(xparam, row['xband'], yparam, row['yband'])
+fits = Table.read('fits/output tables/flare_line_fits.ecsv')
+masks = Table.read('fits/output tables/flare_line_fits_point_masks.ecsv')
 
-    fig, ax = plt.subplots(1, 1, figsize=[3, 2.5])
-    plt.xscale('log')
-    plt.yscale('log')
+# setup to be able to find the right mask
+loc_keys = ('xparam', 'xband', 'yparam', 'yband', 'percentile')
+for key in loc_keys:
+    masks.add_index(key)
+def get_mask(fitdef):
+    slim = masks[:]
+    for key in loc_keys:
+        slim = slim.loc[key, fitdef[key]]
+    return ~slim['mask']
+
+def makelabel(fitdef, axis='x'):
+    param = fitdef[f'{axis}param']
+    band = fitdef[f'{axis}band']
+    unit = fitdef[f'{axis}unit']
+    label = f'{param} - {band}'
+    if unit:
+        label += f' ({unit})'
+    return label
+
+
+def safe_errplot(x, xerr, y, yerr, mask, **pltkws):
+    x, y = x[mask], y[mask]
+    if xerr is not None:
+        xerr = xerr[mask]
+    if yerr is not None:
+        yerr= yerr[mask]
+    return plt.errorbar(x, y, yerr, xerr, **pltkws)
+
+
+#%% make plots
+
+folder = Path('fits/plots/flare line fits/')
+
+for fitdef in fits:
+    x, y, xerr, yerr = get_data(fitdef)
+    fitmask = get_mask(fitdef)
+
+    fig, ax = plt.subplots(1, 1, figsize=[4, 3])
+    plt.xlabel(makelabel(fitdef, 'x'))
+    plt.ylabel(makelabel(fitdef, 'y'))
 
     sets = (
         ('inactive', dict(marker='.', color='C0')),
@@ -212,96 +234,30 @@ def plot_fit(xparam, xeqn, yparam, yeqn, row, fitmask):
         ('40Myr', dict(marker='s', color='C2'))
     )
     for sample, kws in sets:
-        splmask = cat['sample'] == sample
-        plt.errorbar(x[splmask], y[splmask], yerr[splmask], xerr[splmask], alpha=0.5, ls='none', **kws)
+        splmask = cat['sample'].filled('') == sample
+        safe_errplot(x, xerr, y, yerr, splmask, alpha=0.5, ls='none', **kws)
         mask = splmask & fitmask
-        plt.errorbar(x[mask], y[mask], yerr[mask], xerr[mask], ls='none', elinewidth=1, **kws)
+        safe_errplot(x, xerr, y, yerr, mask, ls='none', elinewidth=1, **kws)
+
+    plt.xscale('log')
+    plt.yscale('log')
 
     xln = np.min(x[fitmask]), np.max(x[fitmask])
     xln = np.array(xln)
-    a, b, xpivot = row['alpha'], row['beta'], row['pivot']
+    a, b, xpivot = fitdef['alpha'], fitdef['beta'], fitdef['pivot']
     lyln = np.polyval([a, b], np.log10(xln/xpivot))
     yln = 10**lyln
     plt.plot(xln, yln, 'k-')
 
-    xunit, yunit = row['xunit'], row['yunit']
-    xunit_txt = f'\\ [\\mathrm{{{xunit}}}]' if xunit else ''
-    yunit_txt = f'\\ [\\mathrm{{{yunit}}}]' if xunit else ''
-    eqn = f'${yeqn} = {b:.2g}{yunit_txt}\\ ({xeqn}/{xpivot:.0f}{xunit_txt})^{a:.2f}$'
-    plt.annotate(eqn, xy=(0.02,0.98), xycoords='axes fraction', ha='left', va='top', fontsize='small')
+    eqn = f'$y = {b:.2g}\\ (x/{xpivot:.0f})^{{{a:.2f}}}$'
+    pct = f'percentile = {fitdef['percentile']}'
+    plt.annotate('\n'.join((eqn,pct)), xy=(0.02,0.98), xycoords='axes fraction', ha='left', va='top', fontsize='small')
+    plt.tight_layout()
 
-    return fig
+    filename = (f'{fitdef['xparam'].replace(' ', '')}-{fitdef['xband']}.vs.'
+                f'{fitdef['yparam'].replace(' ', '')}-{fitdef['yband']}')
+    if fitdef['percentile'] != 'n/a':
+        filename += f'.{fitdef['percentile']}th-percentile'
+    filename += '.pdf'
+    plt.savefig(folder / filename)
 
-
-#%% save plots
-
-
-
-
-
-#%% peak flux, fwm, eqd for fuv130
-
-fitkws = dict(xparam='PEW', xband='fuv130',
-              yparam='peak_ratio', yband='fuv130', quantile=0.95)
-result = fit(**fitkws)
-add_row(**fitkws,
-        xpband='fuv130', xplbl='equiv dur', xunit='s',
-        ypband='fuv130', yplbl='contrast', yunit='')
-fig = plot_fit(fitkws['xparam'], '\\delta', fitkws['yparam'], 'F_{pk}/F_q', row=fits[-1], fitmask=result[-1])
-
-
-
-
-#%% line peak flux vs fuv130 eqd
-
-
-#%% line peak flux vs fuv130 peak flux
-
-
-#%% fits between peak flux, fwm, and eqd
-
-fig, axs = plt.subplots(1,2, figsize=[8,4])
-for ax in axs:
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-fig.supxlabel('Equivalent Durations (s)')
-
-fitcat = cat.copy()
-keep = fitcat['PEW'] / fitcat['PEW_err'] > 3.
-fitcat = fitcat[keep]
-
-pew = fitcat['PEW']
-xln = pew[[0, -1]]
-
-def shapefit(ax, ykey, ylbl, xpivot):
-    y = np.log10(fitcat[ykey])
-    x = np.log10(pew)
-    good = ~np.isnan(x) & ~np.isnan(y)
-    ax.plot(pew, fitcat[ykey], '.')
-    ax.set_ylabel(ylbl)
-    (m, b), cov = np.polyfit(x[good] - np.log10(xpivot), y[good], 1, cov=True)
-    eqn = f'{ylbl} = {10**b:.5g}(eqd/{xpivot} s)^{m:.5f}'
-    yln = 10 ** b * (xln/xpivot) ** m
-    ln, = ax.plot(xln, yln, color='0.6')
-    print(eqn)
-    print(cov)
-    print(cov[0,1]/np.sqrt(cov[0,0]*cov[1,1]))
-    return m, b, cov
-
-pivot1 = 251
-m1, b1, cov1 = shapefit(axs[0], 'peak_ratio', 'Fp/Fq', pivot1)
-row = 'equiv dur, fuv130, s, contrast, fuv130, '.split(', ') + [m1, b1, pivot1, cov1]
-fits.add_row(row)
-
-pivot2 = 255
-m2, b2, cov2 = shapefit(axs[1], 'FWHM', 'FWHM', pivot2)
-row = 'equiv dur, fuv130, s, fhwm, fuv130, s'.split(', ') + [m2, b2, pivot2, cov2]
-fits.add_row(row)
-
-
-#%% line peak ratio fits
-
-
-eqd130 = cat['']
-
-for key in linekeys:

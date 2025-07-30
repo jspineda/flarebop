@@ -7,18 +7,13 @@ from astropy import units as u
 from settings import risk_tolerance, characteristic_duration
 
 
-def eqd(rate):
-    eqd = (rate/beta)**(-1/alpha) * eqd_pivot
+def amplitude(rate, alpha, beta, pivot):
+    eqd = (rate/beta)**(-1/alpha) * pivot
     return eqd.to('s')
 
 
-def rate(eqd):
-    rate = beta * (eqd/eqd_pivot)**-alpha
+def rate(amplitude, alpha, beta, pivot):
+    rate = beta * (amplitude/pivot)**-alpha
     return rate
-
-
-def flare_constrast(eqd):
-    Fp_Fq = 0.34 * eqd.to_value('s')**0.59
-    return Fp_Fq
 
 
