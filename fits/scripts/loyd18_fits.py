@@ -86,9 +86,9 @@ def perform_fit(fitdef):
             mask = masks[-1] & use
             lxpivot = np.mean(lx[mask])
             coeffs, cov = np.polyfit(lx[mask] - lxpivot, ly[mask], 1, cov=True)
-            oc = ly - np.polyval(coeffs, lx)
+            oc = ly - np.polyval(coeffs, lx - lxpivot)
             std = np.std(oc[use])
-            masks.append(oc.filled(0)/std < 3.)
+            masks.append(oc.filled(np.inf)/std < 3.)
             if np.all(masks[-1] == masks[-2]):
                 break
         rho = cov[1,0]/np.sqrt(cov[0,0]*cov[1,1])
