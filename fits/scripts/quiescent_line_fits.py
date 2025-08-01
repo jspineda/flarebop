@@ -1,5 +1,6 @@
 from math import nan
 from pathlib import Path
+from itertools import permutations
 
 from matplotlib import pyplot as plt
 plt.ion()
@@ -53,11 +54,10 @@ def perform_fit(fitdef):
     rho = cov[1,0]/np.sqrt(cov[0,0]*cov[1,1])
 
     alpha, beta = coeffs
-    xpivot = 10**lxpivot
 
     result = dict(alpha=alpha,
                   beta=beta,
-                  pivot=xpivot,
+                  pivot=lxpivot,
                   scatter=std,
                   correlation=rho,
                   covariance=cov,
@@ -69,11 +69,7 @@ def perform_fit(fitdef):
 #%% define fits we want to produce
 
 lines = 'CIII SiIII Lya NV CII SiIV CIV HeII'.split(' ')
-fits = []
-for i, xline in enumerate(lines):
-    for yline in lines[i+1:]:
-        fit = dict(xband=xline, yband=yline)
-        fits.append(fit)
+fits = [dict(xband=x, yband=y)  for x,y in permutations(lines, 2)]
 
 
 #%% carry out fits and fill in the table
@@ -97,7 +93,7 @@ for fit in fits:
 #%% construct tables
 
 fits = Table(rows=fitrows, masked=True)
-fits.meta['notes'] = ('All fits are of the form y = beta * (x / pivot) ** alpha. The covariance column gives the '
+fits.meta['notes'] = ('All fits are of the form log10(y) = alpha * (log10(x) - pivot) + beta. The covariance column gives the '
                       'covariance matrix for alpha and beta from the fit and correlation gives the correlation coefficient'
                       'between alpha and beta. Correlation values near zero mean the best fit can be extrapolated '
                       'further with less fear of numerical error (but extrapolation is still dangerous from a '
@@ -139,6 +135,9 @@ for name in fits.colnames:
 fits.write('fits/output tables/quiescent_line_fits.ecsv', overwrite=True)
 masks.write('fits/output tables/quiescent_line_fits_point_masks.ecsv', overwrite=True)
 
+print('You must copy the quiescent_line_fits.ecsv table into the flarebop/tables directory for updated'
+      'fits to be incorporated into the ISR code.')
+
 
 #%% prep to make plots
 
@@ -178,15 +177,17 @@ for fitdef in fits:
 
     xln = np.min(x[fitmask]), np.max(x[fitmask])
     xln = np.array(xln)
-    a, b, xpivot = fitdef['alpha'], fitdef['beta'], fitdef['pivot']
-    lyln = np.polyval([a, b], np.log10(xln/xpivot))
+    a, b, lxpivot = fitdef['alpha'], fitdef['beta'], fitdef['pivot']
+    lyln = np.polyval([a, b], np.log10(xln) - lxpivot)
     yln = 10**lyln
     plt.plot(xln, yln, 'k-')
 
-    eqn = f'$y = {b:.2g}\\ (x/{xpivot:.2g})^{{{a:.2f}}}$'
+    xpivot = 10**lxpivot
+
+    eqn = f'$y = {10**b:.2g}\\ (x/{xpivot:.2g})^{{{a:.2f}}}$'
     plt.annotate(eqn, xy=(0.02,0.98), xycoords='axes fraction', ha='left', va='top', fontsize='small')
     plt.tight_layout()
 
-    filename = (f'{fitdef['xband']}.vs.{fitdef['yband']}.pdf')
+    filename = (f'{fitdef['yband']}.vs.{fitdef['xband']}.pdf')
     plt.savefig(folder / filename)
 
