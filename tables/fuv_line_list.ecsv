@@ -8,31 +8,32 @@
 # - {name: ionztn, datatype: int32}
 # - {name: wave, unit: Angstrom, datatype: float64}
 # - {name: A, unit: 1 / s, datatype: float64}
-# - {name: g, datatype: int32}
+# - {name: component intensity, datatype: float32}
 # - {name: FWHM narrow, unit: km / s, datatype: float64}
 # - {name: FWHM broad, unit: km / s, datatype: float64}
 # - {name: broad narrow ratio, datatype: float64}
 # - {name: Tform, unit: dex(K), datatype: float64}
+# meta: !!omap
+# - {notes: 'Component intensities based on Pagano et al. 2000 AU Mic spectrum.'}
 # schema: astropy-2.0
-qkey fkey name atom ionztn wave A g "FWHM narrow" "FWHM broad" "broad narrow ratio" Tform
-CIII c3 "C III" C 2 1174.9327 329300000.0 5 70.0 "" "" 4.7
-CIII c3 "C III" C 2 1175.263 438500000.0 3 70.0 "" "" 4.7
-CIII c3 "C III" C 2 1175.5903 328700000.0 3 70.0 "" "" 4.7
-CIII c3 "C III" C 2 1175.7112 985600000.0 5 70.0 "" "" 4.7
-CIII c3 "C III" C 2 1175.9871 1313000000.0 1 70.0 "" "" 4.7
-CIII c3 "C III" C 2 1176.3697 546800000.0 3 70.0 "" "" 4.7
-SiIII si3 "Si III" Si 2 1206.51 2550000000.0 3 70.0 "" "" 4.6
-Lya lya Lyα H 0 1215.67 626490000.0 1 125.0 400.0 0.04 3.8
-NV n5 "N V" O 4 1238.804 340000000.0 4 70.0 "" "" 5.2
-NV n5 "N V" O 4 1242.795 337000000.0 2 70.0 "" "" 5.2
-OI o1 "O I" O 0 1302.168 341000000.0 3 60.0 "" "" 3.8
-OI o1 "O I" O 0 1304.858 203000000.0 3 60.0 "" "" 3.8
-OI o1 "O I" O 0 1306.029 67600000.0 3 60.0 "" "" 3.8
-CII c2 "C II" C 1 1334.5323 241000000.0 4 60.0 "" "" 4.5
-CII c2 "C II" C 1 1335.6628 47600000.0 4 60.0 "" "" 4.5
-CII c2 "C II" C 1 1335.7079 288000000.0 6 60.0 "" "" 4.5
-SiIV si4 "Si IV" Si 3 1393.76 880000000.0 4 70.0 "" "" 4.85
-SiIV si4 "Si IV" Si 3 1402.77 863000000.0 2 70.0 "" "" 4.8
-CIV c4 "C IV" C 3 1548.2043 265000000.0 1 70.0 "" "" 4.95
-CIV c4 "C IV" C 3 1550.784 264000000.0 1 70.0 "" "" 4.95
-HeII he2 "He II" He 1 1640.397 1035100000.0 1 60.0 "" "" 4.95
+qkey fkey name atom ionztn wave A "component intensity" "FWHM narrow" "FWHM broad" "broad narrow ratio" Tform
+CIII c3 "C III" C 2 1174.9327 329300000.0 2.34 70.0 "" "" 4.7
+CIII c3 "C III" C 2 1175.263 438500000.0 1.57 70.0 "" "" 4.7
+CIII c3 "C III" C 2 1175.5903 328700000.0 0.96 70.0 "" "" 4.7
+CIII c3 "C III" C 2 1175.7112 985600000.0 3.98 70.0 "" "" 4.7
+CIII c3 "C III" C 2 1175.9871 1313000000.0 2.05 70.0 "" "" 4.7
+CIII c3 "C III" C 2 1176.3697 546800000.0 1.8 70.0 "" "" 4.7
+SiIII si3 "Si III" Si 2 1206.51 2550000000.0 1.0 70.0 "" "" 4.6
+Lya lya Lyα H 0 1215.67 626490000.0 1.0 125.0 400.0 0.04 3.8
+NV n5 "N V" O 4 1238.804 340000000.0 4.52 70.0 "" "" 5.2
+NV n5 "N V" O 4 1242.795 337000000.0 2.11 70.0 "" "" 5.2
+OI o1 "O I" O 0 1302.168 341000000.0 1.92 60.0 "" "" 3.8
+OI o1 "O I" O 0 1304.858 203000000.0 4.89 60.0 "" "" 3.8
+OI o1 "O I" O 0 1306.029 67600000.0 4.99 60.0 "" "" 3.8
+CII c2 "C II" C 1 1334.5323 241000000.0 6.89 60.0 "" "" 4.5
+CII c2 "C II" C 1 1335.7079 288000000.0 14.39 60.0 "" "" 4.5
+SiIV si4 "Si IV" Si 3 1393.76 880000000.0 4.93 70.0 "" "" 4.85
+SiIV si4 "Si IV" Si 3 1402.77 863000000.0 2.92 70.0 "" "" 4.8
+CIV c4 "C IV" C 3 1548.2043 265000000.0 21.36 70.0 "" "" 4.95
+CIV c4 "C IV" C 3 1550.784 264000000.0 11.34 70.0 "" "" 4.95
+HeII he2 "He II" He 1 1640.397 1035100000.0 1.0 60.0 "" "" 4.95

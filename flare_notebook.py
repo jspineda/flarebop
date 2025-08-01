@@ -30,10 +30,11 @@ distance = 4.97*u.pc
 """
 If unknown, keep these as the defaults shown. if known, update.
 For the ISM values, if multiple components have been identified, use the dominant component.
+Note dex units mean this is the log10 of the value in cm-2.
 """
 rv_star = None
 rv_ism = 'local ism'
-Nh = 17 * u.Unit('dex(cm-2)') # note dex units mean this is the log10 of the value in cm-2
+Nh = 17 * u.Unit('dex(cm-2)')
 
 
 #%% Stellar activity parameters
@@ -117,12 +118,12 @@ plt.title('flare')
 
 qdata = np.vstack((wavegrid.to_value('AA'),
                    qspec.to_value('erg s-1 cm-2')))
-filepath = 'ad_leo_quiescent_spectrum_for_etc.dat'
+filepath = 'output_etc_files/ad_leo_quiescent_spectrum_for_etc.dat'
 np.savetxt(filepath, qdata.T)
 
 #%% save flare spectrum in an ETC uploadable format
 
 fdata = np.vstack((wavegrid.to_value('AA'),
                    fspec.to_value('erg s-1 cm-2')))
-filepath = 'ad_leo_flare_spectrum_for_etc.dat'
+filepath = 'output_etc_files/ad_leo_flare_spectrum_for_etc.dat'
 np.savetxt(filepath, fdata.T)
