@@ -13,13 +13,19 @@ correlations.add_index('yband')
 
 line_properties = Table.read('tables/fuv_line_list.ecsv')
 lines = np.unique(line_properties['qkey']).tolist()
-lines.remove('OI') # FIXME once I get the line data from fernando or make some myself
 
-def fill_quiescent_lines(input_line_flux_dictionary):
-    fluxdict = input_line_flux_dictionary.copy()
+def fill_quiescent_lines(**input_line_fluxes):
+    fluxdict = input_line_fluxes.copy()
     input_lines = list(fluxdict.keys())
     to_fill = set(lines) - set(input_lines)
     for line in to_fill:
+        # FIXME once we have O I from Fernando
+        if line == 'OI':
+            not_lya = set(input_lines) - {'Lya'}
+            not_lya = list(not_lya)
+            fluxdict[line] = fluxdict[not_lya[0]]
+            continue
+
         usable_correlations = correlations.loc['xband', input_lines]
         usable_correlations = usable_correlations.loc['yband', line]
 
@@ -29,12 +35,13 @@ def fill_quiescent_lines(input_line_flux_dictionary):
 
         # calculate the flux of the line to fill
         x = fluxdict[correlation['xband']]
+        x = x.to_value('erg s-1 cm-2')
         lx = np.log10(x)
         alpha = correlation['alpha']
         beta = correlation['beta']
         pivot = correlation['pivot']
         ly = alpha * (lx - pivot) + beta
-        y = 10**ly
+        y = 10**ly * u.Unit('erg s-1 cm-2')
 
         fluxdict[line] = y
 
@@ -97,7 +104,7 @@ def spectrum(wavegrid, **line_fluxes):
     missing_lines = inrange_lines - input_lines
     if missing_lines:
         raise ValueError(f'No fluxes provided for these lines that are in the '
-                         f'{wavegrid[0]}–{wavegrid[1]} range of the wave grid:'
+                         f'{wavegrid[0]}–{wavegrid[-1]} range of the wave grid:'
                          f'\n\t{missing_lines} ')
 
     # get profiles for all line components
@@ -115,7 +122,7 @@ def spectrum(wavegrid, **line_fluxes):
         F = np.trapz(f, wavegrid.value)
         input_flux = line_fluxes[line]
         normfac = input_flux / F
-        f *= normfac
-        spec += f
+        f = f * normfac
+        spec = spec + f
 
     return spec

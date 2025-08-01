@@ -23,10 +23,10 @@ _select = (
 flare_correlations = flare_correlations[_select]
 flare_correlations.add_index('yband')
 
-# treat the lya core like O I
-_lya_core_row = flare_correlations.loc['o1']
-_lya_core_row['yband'] = 'lya core'
-flare_correlations.add_row(_lya_core_row)
+# treat all of lya like the wings
+_lya_row = flare_correlations.loc['lya wings']
+_lya_row['yband'] = 'lya'
+flare_correlations.add_row(_lya_row)
 
 key_map = dict(zip(line_list['fkey'], line_list['qkey']))
 line_contrasts = {}
@@ -40,15 +40,3 @@ for row in flare_correlations:
     ly = alpha * (lx - pivot) + beta
     y = 10**ly
     line_contrasts[qkey] = y
-
-
-def flare_spectrum(wavegrid, quiescent_line_fluxes):
-    inrange = (line_list['wave'] > wavegrid[0]) & (line_list['wave'] < wavegrid[-1])
-    lines = line_list.copy()[inrange]
-
-
-"""next steps:
-add A values and widths to line list
-make spectrum of lines
-compare to existing isr for AD Leo
-"""

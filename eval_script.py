@@ -1,21 +1,25 @@
+from pathlib import Path
 
 from matplotlib import pyplot as plt
 import numpy as np
-from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
+import lines
+import ism
+import worst_case
 
 #%% settings
 
-verbose = True
+# in order to resolve the lines, do not use a grid step below 0.05 AA
+wavegrid = np.arange(1100, 1800, 0.01) * u.AA
 
 
 #%% input stellar parameters
 
 """AD Leo used as example."""
 
-coords = SkyCoord((154.90117008*u.deg, 19.8700029*u.deg))
+coords = SkyCoord(154.90117008*u.deg, 19.8700029*u.deg)
 # example alternate option copying in simbad coordinates
 # coords = SkyCoord("10 19 36.2808181226 +19 52 12.010446571",
 #                   unit=(u.hourangle, u.deg))
@@ -27,54 +31,98 @@ distance = 4.97*u.pc
 If unknown, keep these as the defaults shown. if known, update.
 For the ISM values, if multiple components have been identified, use the dominant component.
 """
-stellar_rv = None
-ism_rv = 'local ism'
-log_Nh = 17 * u.Unit('dex(cm-2)')
+rv_star = None
+rv_ism = 'local ism'
+Nh = 17 * u.Unit('dex(cm-2)') # note dex units mean this is the log10 of the value in cm-2
 
 
 #%% Stellar activity parameters
 
 """
-There are a range of options for specifiying the stellar activity. 
-Each will ultimately be used to infer other quiescent line fluxes of the star, which is the basis of the
-relationships from Loyd+ 2018. 
-They are listed in order of most to least accurate (modulo some nuances).
-Fill out only the topmost line for which you can find information on the star, *no others*.
+For now the only option is to specify some number of known UV line fluxes,
+but in the future we should add the ability to specify a rotation period,
+R'hk, S, or Ha activity metric if the star has no UV measurements.
+I'm tempted to make a correlation with GALEX mags too, but that
+could be a rabit hole.
 """
 
-# direct measurement
-# F_si4 = None
-F_si4 = 160e-15 * u.Unit('erg s-1 cm-2') # example for AD Leo
-
-# line-line scaling, Pineda & Loyd 2026
-F_si3 = None
-# F_si3 = 140e-15 * u.Unit('erg s-1 cm-2') # example for AD Leo
-
-# Pineda+ 2021 if Teff <= 3500, Loyd+ 2021 if Teff > 3500
-rotation_period, mass, Teff = None, None, None
-
-# less accurate FUV line-line scalings, Pineda & Loyd 2026
-Fc2 = None
-# F_c2 = 220e-15 * u.Unit('erg s-1 cm-2') # example for AD Leo
-Fn5 = None
-# F_n5 = 140e-15 * u.Unit('erg s-1 cm-2') # example for AD Leo
-Fn5 = None
-
-# Melbourne+ 2020
-CaII_S = None
-CaII_Rhk = None
-LHa_Lbol = None
-Ha_EW = None # will need a relationship to convert this to LHa_Lbol
-
-# even less accurate line-line scaling, Pineda & Loyd 2026
-F_lya_intrinsic = None
-
-_value_list = [F_si4, F_si3, rotation_period, Fc2, Fn5, CaII_S, CaII_Rhk, Ha_EW, F_lya_intrinsic]
-_is_provided = [x is not None for x in _value_list]
-if sum(_is_provided) > 1:
-    raise ValueError('Values provided for multiple lines in this cell. You must provide only one.')
+flux_unit = u.Unit('erg s-1 cm-2')
+line_fluxes = dict(
+    CII = 220e-15 * flux_unit,
+    SiIII = 140e-15 * flux_unit,
+    SiIV = 160e-15 * flux_unit,
+)
 
 
-#%% compute general parameters for worst-case flare
+#%% fill any reamining line fluxes based on line-line correlations
+
+dist_to_1AU = (distance / u.au) ** 2
+dist_to_1AU = dist_to_1AU.to_value('')
+line_fluxes_1AU = {line : flux * dist_to_1AU for line, flux in line_fluxes.items()}
+all_line_fluxes_1AU = lines.fill_quiescent_lines(**line_fluxes_1AU)
+all_line_fluxes = {line : flux / dist_to_1AU for line, flux in all_line_fluxes_1AU.items()}
+
+#%% optional: make a quiescent spectrum
+"""This could be useful for SNR estimates."""
+
+qspec = lines.spectrum(wavegrid, **all_line_fluxes)
+
+#%% make a spectrum for a worst case flare
+
+fluxes_worst_case = {}
+for line, quiescent_flux in all_line_fluxes.items():
+    flare_contrast = worst_case.line_contrasts[line]
+    flare_flux = quiescent_flux * flare_contrast
+    fluxes_worst_case[line] = flare_flux
+fspec = lines.spectrum(wavegrid, **fluxes_worst_case)
 
 
+#%% add ISM absorption
+
+if rv_star is None:
+    print('No ISM absorption added because stellar RV not provided.')
+else:
+    if rv_ism == 'local ism':
+        rv_ism = ism.local_ism_rv(coords)
+    rv_diff = rv_ism - rv_star
+    transmission = ism.transmission(wavegrid, rv_diff, Nh.to('cm-2'))
+    fspec *= transmission
+    try:
+        qspec *= transmission
+    except NameError:
+        pass
+
+
+#%% plot spectrum, if desired
+
+def setup_plot():
+    plt.figure()
+    plt.xlabel('Wavelength (Å)')
+    plt.ylabel('Flux Density (erg s-1 cm-2 Å-1)')
+
+try:
+    _ = qspec # just to check tat qspec is defined
+    setup_plot()
+    plt.plot(wavegrid, qspec, color='k')
+    plt.title('quiescent')
+except NameError:
+    pass
+
+setup_plot()
+plt.plot(wavegrid, fspec, color='C3', label='flare')
+plt.title('flare')
+
+
+#%% optional save quiescent spectrum in an ETC uploadable format
+
+qdata = np.vstack((wavegrid.to_value('AA'),
+                   qspec.to_value('erg s-1 cm-2')))
+filepath = 'ad_leo_quiescent_spectrum_for_etc.dat'
+np.savetxt(filepath, qdata.T)
+
+#%% save flare spectrum in an ETC uploadable format
+
+fdata = np.vstack((wavegrid.to_value('AA'),
+                   fspec.to_value('erg s-1 cm-2')))
+filepath = 'ad_leo_flare_spectrum_for_etc.dat'
+np.savetxt(filepath, fdata.T)

@@ -14,17 +14,16 @@ A = 6.2649e8 / u.s
 mH, mD = 1 * u.u, 2 * u.u
 
 
-def local_ism_rv(ra, dec):
+def local_ism_rv(target_coord):
     # see http://lism.wesleyan.edu/ColoradoLIC.html and
     # lallement & bertin 1992
     v_sun = 26*u.km/u.s
     v_sun_direction = coord.SkyCoord(74.5*u.deg, -6*u.deg)
     v_sun_vector = v_sun * v_sun_direction.represent_as('cartesian').xyz
 
-    target_directions = coord.SkyCoord(ra, dec)
-    target_vectors = target_directions.represent_as('cartesian').xyz
+    target_vector = target_coord.represent_as('cartesian').xyz
 
-    v_sun_component = np.dot(v_sun_vector.to_value(), target_vectors) * v_sun_vector.unit
+    v_sun_component = np.dot(v_sun_vector.to_value(), target_vector) * v_sun_vector.unit
     return v_sun_component
 
 
@@ -84,9 +83,9 @@ def voigt(x, gauss_sigma, lorentz_FWHM):
     return np.real(wofz((x + 1j*gamma)/sigma/np.sqrt(2))) / sigma /np.sqrt(2*np.pi)
 
 
-def transmission(w, rv, Nh, T):
+def transmission(w, rv, Nh):
     w0s = doppler_shift((wlab_H, wlab_D)*u.AA, rv)
-    xsections = [voigt_xsection(w, w0, f, A, T, m) for
+    xsections = [voigt_xsection(w, w0, f, A, Tism, m) for
                  w0, m in zip(w0s, (mH, mD))]
     tau = xsections[0]*Nh + xsections[1]*Nh*D_H
     return np.exp(-tau)
