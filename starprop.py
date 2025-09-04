@@ -73,7 +73,7 @@ def Rossby(mass,period,method="Wright2018"):
 ## stellar properties class for user usage
 class StarProp (object):
     
-    def __init__(self,coords, distance,Kband=None,Mass=None,Period=None,RV=None,Nh=17):
+    def __init__(self,coords, distance,Kband=None,Mass=None,Period=None,RV=None,Gaia=None,Nh=17):
         ""
         # use K-band to get mass
         # rest of properties defined by sequences from Pineda et al. 2021
@@ -92,9 +92,13 @@ class StarProp (object):
         if RV is not None:
             self.rv = RV.to('km s-1')
 
-        self.Nh = Nh * u.Unit('dex(cm-2)') # defaul value of log10 Nh /cm2 of 17
+        self.Nh = Nh * u.Unit('dex(cm-2)') # default value of log10 Nh /cm2 of 17
 
-
+        # if age is known can use loyd relationships, requires radius to convert from surface flux (photometric radii based on Gaia color?)
+        # if known early M + period known can also use loyd relationships, requires radius (photometric radii based on Gaia color?)
+        # if mid to late dwarf + period known -> uses Pineda, requires 2MASS Kband to get mass (uses mas-lum relationship; typical metallicity)
+        # if early M period unknown -- assume active from loyd, (photometric radii based on Gaia color?)
+        # if mid to late period unknown -- assume active from Pineda (still need Kband to get mass)
 
     def populateLines(self):
         ""
