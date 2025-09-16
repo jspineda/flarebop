@@ -99,6 +99,7 @@ class StarProp (object):
         # if mid to late dwarf + period known -> uses Pineda, requires 2MASS Kband to get mass (uses mas-lum relationship; typical metallicity)
         # if early M period unknown -- assume active from loyd, (photometric radii based on Gaia color?)
         # if mid to late period unknown -- assume active from Pineda (still need Kband to get mass)
+        # if no period use optical relationships
 
     def populateLines(self):
         ""
