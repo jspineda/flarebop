@@ -1,0 +1,50 @@
+# Rotation-Activity Relationships (astropy table - ascii)
+# ---
+# datatype:
+# - {name: xparam, datatype: string}
+# - {name: xband, datatype: string}
+# - {name: yparam, datatype: string}
+# - {name: yband, datatype: string}
+# - {name: satu, datatype: float64}
+# - {name: alpha, datatype: float64}
+# - {name: pivot, datatype: float64}
+# - {name: scatter, datatype: float64, format: .2g}
+# - {notes: Loyd+21 covers early m-dwarfs in age (yr), rotation (d), rossby for surface flux (erg/s/cm2)
+# Pineda+21 includes later m-dwarfs, just as rossby in luminosity relative to bolometric}
+# 
+xparam xband yparam yband satu alpha pivot scatter
+Age Loyd Fsurf MgII 5.970 0.78 8.381 0.21
+Age Loyd Fsurf CII 4.967 1.31 8.381 0.21
+Age Loyd Fsurf SiIII 4.554 1.34 8.381 0.23
+Age Loyd Fsurf CIII 4.847 1.34 8.381 0.19
+Age Loyd Fsurf SiIV 4.646 1.33 8.381 0.19
+Age Loyd Fsurf HeII 5.077 1.28 8.381 0.21
+Age Loyd Fsurf CIV  5.208 1.27 8.381 0.20
+Age Loyd Fsurf NV  4.580 1.16 8.381 0.19
+Age Loyd Fsurf Cont 5.365 1.07 8.381 0.21
+Period Loyd Fsurf MgII 5.993 1.15 0.846 0.19
+Period Loyd Fsurf CII 5.000 1.87 0.846 0.17
+Period Loyd Fsurf SiIII 4.588 1.86 0.846 0.19
+Period Loyd Fsurf CIII 4.878 2.03 0.846 0.22
+Period Loyd Fsurf SiIV 4.662 1.84 0.846 0.18
+Period Loyd Fsurf HeII 5.112 1.82 0.846 0.19
+Period Loyd Fsurf CIV  5.227 1.75 0.846 0.21
+Period Loyd Fsurf NV  4.601 1.62 0.846 0.15
+Period Loyd Fsurf Cont 5.395 1.60 0.846 0.18
+Rossby Loyd Fsurf MgII 5.994 1.15 -0.876 0.23
+Rossby Loyd Fsurf CII 4.992 1.88 -0.876 0.22
+Rossby Loyd Fsurf SiIII 4.586 1.88 -0.876 0.23
+Rossby Loyd Fsurf CIII 4.879 2.06 -0.876 0.27
+Rossby Loyd Fsurf SiIV 4.657 1.84 -0.876 0.22
+Rossby Loyd Fsurf HeII 5.116 1.84 -0.876 0.23
+Rossby Loyd Fsurf CIV  5.243 1.80 -0.876 0.25
+Rossby Loyd Fsurf NV  4.603 1.65 -0.876 0.19
+Rossby Loyd Fsurf Cont 5.392 1.61 -0.876 0.23
+Rossby Pineda LumLb Lya -3.58 1.26 -0.678 0.32
+Rossby Pineda LumLb MgII -3.99 1.86 -0.699 0.23
+Rossby Pineda LumLb CII -5.25 2.38 -0.620 0.33
+Rossby Pineda LumLb SiIII -5.37 2.08 -0.699 0.32
+Rossby Pineda LumLb HeII -4.92 2.19 -0.721 0.27
+Rossby Pineda LumLb SiIV -5.38 2.32 -0.620 0.35
+Rossby Pineda LumLb CIV -4.72 2.02 -0.745 0.37
+Rossby Pineda LumLb NV -5.37 1.84 -0.721 0.33
