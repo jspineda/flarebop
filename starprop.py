@@ -12,14 +12,16 @@
 
 
 import numpy as np
-from scipy.interopolate import make_interp_spline
+from scipy.interpolate import make_interp_spline
 
 import astropy.units as u
 import astropy.constants as const
 from astropy.coordinates import SkyCoord  # for use with ISM stuff
-
+from astropy.table import Table
 from astroquery.simbad import Simbad
 from astroquery.gaia import Gaia
+
+import lines
 
 import pdb
 
@@ -36,6 +38,8 @@ Simbad.add_votable_fields('flux(K)')
 
 
 ### utility functions first
+
+flux_unit = u.Unit('erg s-1 cm-2')
 
 def absMag(apparent,distance):
     "Compute absolute magnitude, assumes distance in PC"
@@ -67,7 +71,7 @@ class GPSeq():
 
         self.lsun = const.L_sun.cgs
         self.funcLM = make_interp_spline(datLM['Mass'],datLM['LogL'])
-        self.funcTM = make_interp_spline(datTM['Mass'],datTM['Tefg'])
+        self.funcTM = make_interp_spline(datTM['Mass'],datTM['Teff'])
 
     def getLum(self,mass):
         ""
@@ -78,12 +82,12 @@ class GPSeq():
         ""
         return self.funcTM(teff)*u.K
 
-GPs = GpSeq()
+GPs = GPSeq()
 
 def photRadius(Gin,BpRp):
     ""
-    # fill in with appropriate function...
-    return 0.4*const.R_sun
+    # fill in with appropriate function from Loyd+21
+    return 0.4
 
 
 def convTime(massin,method="Wright2018"):
@@ -180,9 +184,13 @@ class StarProp (object):
             else:
                 print("Gaia ID not found in SIMBAD..")
             
-            self.photrad = photRadius(self.G,self.self.Bp_Rp) # need to define phot radius relation for use with loyd rot-act stuff
+            self.photrad = photRadius(self.G,self.Bp_Rp) # need to define phot radius relation for use with loyd rot-act stuff
             self._photrad = self.photrad * const.R_sun
-            self.LumBol = GPs(self.mass)
+            self.LumBol = GPs.getLum(self.mass)
+            self.DTeff = GPs.getTeff(self.mass)
+            self.radius = None # if radius is not set, then phot radius will be used
+            # additional manual routines? luminosity, radius?
+            self.dwarf = self.DTeff <= 3300*u.K # for determining if 'late' Loyd only for early
             
         elif isinstance(infoin,tuple):
             
@@ -211,7 +219,7 @@ class StarProp (object):
             self.rv = RV.to('km s-1')
 
         self.state()
-            
+        self.all_lines = None
 
         # if age is known can use loyd relationships, requires radius to convert from surface flux (photometric radii based on Gaia color?)
         # if known early M + period known can also use loyd relationships, requires radius (photometric radii based on Gaia color?)
@@ -229,14 +237,58 @@ class StarProp (object):
 
     def populateLines(self):
         ""
+        
+        print("Automatically setting quiescent line fluxes..")
+        
+        actcorr = RotAct(self)
+        
+        iky = np.where([k in actcorr.id for k in lines.linekeys])[0]
+        choice = lines.linekeys[iky[0]]
+        
+        print("Basing quiescent emission on rotation-age-activity correlations for {}".format(choice))
+        
+        if 'Age' in actcorr.id:
+            varx = self.age
+        elif 'Period' in actcorr.id:
+            varx = self.period
+        elif 'Rossby' in actcorr.id:
+            varx = actcorr.rossby
+        else:
+            print("Error check inputs, missing star properties...")
+            
+        line_fluxes = {choice:actcorr.func(varx)[0]}
+        self.setLines(line_fluxes)
+        ## routines in lines.fill  are set up for use with more than 1 input line, not just a single one
+        
         #use to autotmatically update emission line quiescent values based on available inputs
         #have separate routine to take advantage of use inputs?
 
     def setLines(self,input):
         ""
+#        line_fluxes = dict(
+#                CII = 220e-15 * flux_unit,
+#                SiIII = 140e-15 * flux_unit,
+#                SiIV = 160e-15 * flux_unit,
+#            )
+
+        if self.all_lines is not None:
+            print("Overwriting existing line fluxes..")
+
         self.inlines = input
+        newky = [j for j in input.keys()]
         
-        # use rest of method to convert inputs to standard format, and populate missing lines
+        if np.all([k  in lines.linekeys for k in newky]):
+            pass
+        else:
+            print("Input line Keys Don't match quiescent line database: {0} not in \n {1}".format(newky,lines.linekeys))
+            return None
+        
+        dist_to_1AU = ((self.dist / u.au) ** 2).to('')
+        line_fluxes_1AU = {line : flux * dist_to_1AU for line, flux in self.inlines.items()}
+        all_line_fluxes_1AU = lines.fill_quiescent_lines(**line_fluxes_1AU)
+        self.all_lines = {line : flux / dist_to_1AU for line, flux in all_line_fluxes_1AU.items()}
+        
+        # use rest of method to convert inputs to standard format, and populate missing lines; lines are observed fluxes
         
 
     def setFFDuv(self,dFFDin):
@@ -247,7 +299,7 @@ class StarProp (object):
         self.delta_min = dFFDin.d_m # has units
         self.flarerate = dFFDin.norm # has units
 
-        ## separate routine to take stellar properties and turn into optical FFD?
+        ## separate routine to take stellar properties and turn into optical FFD? [Need own optical flare model? ]
 
     def setContrast(self,contrast_fit):
         ""
@@ -255,14 +307,28 @@ class StarProp (object):
         self.ampCurve = contrast_fit
 
     
-    
     def setPeriod(self, perin):
         ""
         self.period = perin.to(u.d)
+        self.age = None # so as to toggle age usage
 
     def setAge(self, agein):
         ""
         self.age = agein.to(u.yr)
+
+    def setRadius(self, radin):
+        ""
+        try:
+            rad = radin.to(u.cm)
+            self._radius = rad
+            self.radius = (rad/ const.R_sun).to('')
+        except:
+            self.radius = radin
+            self._radius = radin*const.R_sun
+
+    def setLum(self, lumin):
+        ""
+        self.LumBol = lumin.to('erg s-1')
 
     def state(self):
         ""
@@ -271,7 +337,10 @@ class StarProp (object):
         print("Target Coordinates are {}".format(self.coords) )
         
         print("Object Mass is set to {} solar masses".format(self.mass))
-        
+        print("Object Radius is set to {} ".format(self.photrad))
+        print("Object Luminosity is set to {}".format(self.LumBol))
+        print("Object Teff is set to {} ".format(self.DTeff))
+
         if self.age is not None:
             print("Object Age is set to {}".format(self.age))
 
@@ -279,7 +348,16 @@ class StarProp (object):
             print("Object Period is set to {}".format(self.period))
 
         if (self.period is None) & (self.age is None):
-            print("Will need to set Age or Period if quiescent fluxes unknown, use ____ to set quiescent lines")
+            print("Will need to set Age or Period if quiescent fluxes unknown, use `setLines' to input quiescent line strengths")
+
+        if self.dwarf:
+            print("Target Appears to be a Late M-dwarf (SpT: {}) -- period and luminosity required for auto line population".format(self.spt))
+
+
+    def getPhot(self):
+        print("Absolute K-band magnitude {}".format(self.MK) )
+        print("Gaia G magnitude {}".format(self.G) )
+        print("Gaia color Bp - Rp magnitude {}".format(self.Bp_Rp) )
 
 ## if age is unknown what to do about optical FFDs
 
@@ -292,37 +370,69 @@ class RotAct(object):
         ""
         
         if starclass.mass is not None and starclass.period is not None:
-            self.rossby = Rossby(starclass.mass,starclass.period)
+            self.rossby = Rossby(starclass._mass,starclass.period)
         else:
             self.rossby = None
+
+        if starclass.radius is None:
+            raduse = starclass._photrad.to('cm')
+        else:
+            raduse = starclass._radius.to(u.cm)
 
         # takes as input starclass
         # examines stellar properties in class, to choose which of the rotation activity relations to utilize?
         # returns method defined by those functions and annotations of that choice
         
-        acttab = Table.read('tables/rot_act.dat')
-        
-        # place holder
-        _select = (
-    (acttab['xparam'] == 'Rossby') &
-    (acttab['xband'] == 'Pineda') &
-    (acttab['yband'] == 'HeII')  )
+        acttab = Table.read('tables/rot_act.dat',format='ascii')
 
+        if starclass.dwarf:
+            # pineda
+            _select = ( (acttab['xparam'] == 'Rossby') &
+                (acttab['yband'] == 'HeII') &
+                (acttab['xband'] == 'Pineda') )
+            self.id = 'Rossby ' + 'HeII => Luminosity'
+            self.unitx = 1
+            self.unity = 1
+            self.cfactor = starclass.LumBol / starclass.dist.to(u.cm)**2 / 4 / np.pi
+
+        else:
+            #loyd
+            
+            # if elif block to set prioritization based on available inputs
+            if starclass.age is not None:
+                _select = ( (acttab['xparam'] == 'Age') &
+                                (acttab['yband'] == 'SiIV')  )
+                self.id = 'Age ' + 'SiIV => Surface Flux'
+                self.unitx = u.yr
+            elif (starclass.period is not None):
+                _select = ( (acttab['xparam'] == 'Period') &
+                                (acttab['yband'] == 'NV')  )
+                self.id = 'Period (d) ' + 'NV => Surface Flux'
+                self.unitx = u.d
+            else:
+                print("Missing Age or Period -- set with StarClass")
+                return None
+            # this omits the use of the Loyd+21 rossby relation.. the period one appears to be more precise?
+                
+            self.unity = u.erg / u.s / u.cm**2
+            self.cfactor = raduse**2 / starclass.dist.to(u.cm)**2
+        
         prop = acttab[_select]
 
-
-#        _select = (
-#    (acttab['xparam'] == 'Rossby') &
-#    (acttab['xband'] == 'Pineda') &
-#    (flare_correlations['yparam'] == 'contrast') &
-#    (flare_correlations['yband'] != 'fuv130') &
-#    (flare_correlations['percentile'] == '95')
-#)
-
+        self.satu = prop['satu']
+        self.alpha = prop['alpha']
+        self.pivot = prop['pivot']
+        self.scat = prop['scatter']
+  
     def func(self,varin):
+        ""
+        # returns observed line fluxes for specific line choice
+        if (varin/self.unitx).to('') >= self.pivot:
+            x = -self.alpha*( np.log10( varin / self.unitx) - self.pivot )
+            return (self.unity*np.power(10, self.satu + x)*self.cfactor).to('erg s-1 cm-2')
+        else:
+            return (self.unity*np.power(10, self.satu)*self.cfactor).to('erg s-1 cm-2')
     
-        return 0
-    
-    
+
 ## can then use relationships from pineda et al 2021b? R, Lum --> Teff ?? don't really need these may need luminosity actually for normalized
 

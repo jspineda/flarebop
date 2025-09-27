@@ -11,6 +11,7 @@ from astropy.coordinates import SkyCoord
 import worst_case
 import ism
 
+
 correlations = Table.read('tables/quiescent_line_fits.ecsv')
 correlations.add_index('xband')
 correlations.add_index('yband')
@@ -37,10 +38,12 @@ def fill_quiescent_lines(**input_line_fluxes):
 
         ycorrelations = xcorrelations.loc['yband', line]
 
-        # pick the correlation with the smallest scatter
-        ipick = np.argmin(ycorrelations['scatter'])
-        correlation = ycorrelations[ipick]
-
+        # pick the correlation with the smallest scatter, and deal with case of just 1 line in
+        if len(input_lines) == 1:
+            correlation = ycorrelations
+        else:
+            ipick = np.argmin(ycorrelations['scatter'])
+            correlation = ycorrelations[ipick]
         # calculate the flux of the line to fill
         x = fluxdict[correlation['xband']]
         x = x.to_value('erg s-1 cm-2')
