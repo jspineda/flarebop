@@ -81,7 +81,7 @@ class StarProp (object):
         self.dist = distance.to(u.pc)
         self.coords = SkyCoord(coords[0], coords[1])
         
-        if (Mass is None) & (Kband is None)
+        if (Mass is None) & (Kband is None):
             print('Must set 2MASS Ks band with distance or else specify mass in solar units')
             return None
         
