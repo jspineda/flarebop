@@ -35,6 +35,9 @@ class dFFD(object):
         return dist * self.norm
     
   
+  ## add in here Jim's flare evolution model?
+  
+  
     
 # result from Loyd+ 2018b analysis with more sig figs
 # to mitigate numerical errors for large extrapolations
