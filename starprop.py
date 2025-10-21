@@ -160,6 +160,7 @@ class StarProp (object):
 
             # what if values are missing?
             rv_sim = simtab['RV_VALUE'][0] * simtab['RV_VALUE'].unit # store a radial velocity
+            self.rv = rv_sim
             self.dist = 1000*u.pc/simtab['PLX_VALUE'][0]           # store distance in pc
             self.MK = absMag(simtab['FLUX_K'][0],self.dist)
             self.mass, _ = MassMK_Mann19(self.MK)
@@ -337,7 +338,7 @@ class StarProp (object):
         print("Target Coordinates are {}".format(self.coords) )
         
         print("Object Mass is set to {} solar masses".format(self.mass))
-        print("Object Radius is set to {} ".format(self.photrad))
+        print("Object Radius is set to {} (make sure photradius relation is correct)".format(self.photrad))
         print("Object Luminosity is set to {}".format(self.LumBol))
         print("Object Teff is set to {} ".format(self.DTeff))
 
