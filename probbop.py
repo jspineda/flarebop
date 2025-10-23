@@ -19,7 +19,7 @@ class FlProb(object):
         # starclass is meant to be 'StarProp 'class in starprop.py; and obsclass is whatever we do for the observatory stuff 
         
         self.Dt = Dt
-        self.ampH = 3581.92876456  # 3581.92876456 is the standard reference for fuv130 FFD, and flare contrast 50%
+        self.ampH = 13906.603563778966  # 3581.92876456 is the standard reference for fuv130 FFD, and flare contrast 50%
         self.refprob = refprob # store reference probability for comparison
 
         ## replace with actual compute H; also check consistency of contrast curve choice with observatory selections
@@ -30,9 +30,9 @@ class FlProb(object):
         self.d_m = starclass.delta_min.to(u.s) # minimun in units of seconds
         self.rate = starclass.flarerate # total flare rate with units
         
-        self.sig = starclass.ampCurve['Scatter']
-        self.aslpe = starclass.ampCurve['Slope']
-        self.boffset = starclass.ampCurve['Const'] - self.aslpe*starclass.ampCurve['Pivot'] # data tables use pivot as part of offset
+        self.sig = starclass.ampCurve['scatter'][0] # this will need to match however flare contrast curves as stored in starprop
+        self.aslpe = starclass.ampCurve['alpha'][0]
+        self.boffset = starclass.ampCurve['beta'][0] - self.aslpe * starclass.ampCurve['pivot'][0] # data tables use pivot as part of offset
 
         self.dcrit = self.matchED(self.ampH)
         self.dpeak = self.peakED(self.ampH)
@@ -116,30 +116,35 @@ class FlProb(object):
         ""
         ## routine to generate diagnostic plots and report? current stuff here is a bit of place holder / example
 
-        y = np.logspace( np.log10(self.dpeak.value) - 3, np.log10(self.dpeak.value) + 3, 1000 )*u.s
-        eta = self.eta(y)
-        plt.figure(1)
-        plt.plot(y,eta,label="H = {}".format(self.ampH) )
-        plt.vlines(self.dpeak,eta.max().value*1e-3,eta.max().value*2,color='gray',linestyles=':',alpha=0.8)
-        plt.legend()
-        plt.xscale('log')
-        plt.yscale('log')
-        plt.ylabel('$\\eta$ (s$^{-1}$) ')
-        plt.xlabel('Equivalent Duraation (s)')
-        plt.ylim([eta.max().value*1e-3,eta.max().value*2])
+        print("Overlight threshold is {} in flare contrast".format(self.ampH))
+        print("Total Overlight Probability is {0} in {1}".format(self.probability, self.Dt) )
+        print("Danger peaks for Equivalent Durations of {}".format(self.dpeak) )
 
 
-        Hs = np.logspace(np.log10(2),4,1000)
-        zed = self.totprob(Hs,self.Dt)
-        plt.figure(2)
-        plt.plot(Hs, zed ,label="$\\Delta t$ = {}".format(self.Dt) )
-        plt.hlines(self.refprob,Hs.min(),Hs.max(),color='gray',linestyles=':',alpha=0.8,label='Policy Reference')
-        plt.vlines(self.Hlimit, zed.min() ,1,color='gray',linestyles=':',alpha=0.8)
-        plt.text(self.Hlimit*1.5,5e-3,"Limiting H = {0:5.1f}".format(self.Hlimit))
-
-        plt.legend()
-        #plt.xscale('log')
-        plt.yscale('log')
-        plt.ylabel('Event Probability')
-        plt.xlabel('Threshold Amplitude, H')
+#        y = np.logspace( np.log10(self.dpeak.value) - 3, np.log10(self.dpeak.value) + 3, 1000 )*u.s
+#        eta = self.eta(y)
+#        plt.figure(1)
+#        plt.plot(y,eta,label="H = {}".format(self.ampH) )
+#        plt.vlines(self.dpeak,eta.max().value*1e-3,eta.max().value*2,color='gray',linestyles=':',alpha=0.8)
+#        plt.legend()
+#        plt.xscale('log')
+#        plt.yscale('log')
+#        plt.ylabel('$\\eta$ (s$^{-1}$) ')
+#        plt.xlabel('Equivalent Duraation (s)')
+#        plt.ylim([eta.max().value*1e-3,eta.max().value*2])
 #
+
+#        Hs = np.logspace(np.log10(2),4,1000)
+#        zed = self.totprob(Hs,self.Dt)
+#        plt.figure(2)
+#        plt.plot(Hs, zed ,label="$\\Delta t$ = {}".format(self.Dt) )
+#        plt.hlines(self.refprob,Hs.min(),Hs.max(),color='gray',linestyles=':',alpha=0.8,label='Policy Reference')
+#        plt.vlines(self.Hlimit, zed.min() ,1,color='gray',linestyles=':',alpha=0.8)
+#        plt.text(self.Hlimit*1.5,5e-3,"Limiting H = {0:5.1f}".format(self.Hlimit))
+#
+#        plt.legend()
+#        #plt.xscale('log')
+#        plt.yscale('log')
+#        plt.ylabel('Event Probability')
+#        plt.xlabel('Threshold Amplitude, H')
+##
