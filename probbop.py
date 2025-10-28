@@ -54,10 +54,10 @@ class FlProb(object):
         return np.power(10,self.logAmplitude(delta.to(u.s).value))
 
 
-    def eta(self, delta ):
+    def eta(self, delta, H, time):
         ""
-        prefac = 0.5*(self.alpha - 1)*(1 - np.exp( - (self.rate*self.Dt).to('') )) * np.power( (delta / self.d_m).to('') , -self.alpha ) / self.d_m
-        f1 = 1 - erf( (np.log10(self.ampH) - self.logAmplitude(delta) ) / np.sqrt(2) / self.sig  )
+        prefac = 0.5*(self.alpha - 1)*(1 - np.exp( - (self.rate*time).to('') )) * np.power( (delta / self.d_m).to('') , -self.alpha ) / self.d_m
+        f1 = 1 - erf( (np.log10(H) - self.logAmplitude(delta) ) / np.sqrt(2) / self.sig  )
         return f1*prefac
         
 
